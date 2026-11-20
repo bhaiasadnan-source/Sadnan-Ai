@@ -38,10 +38,7 @@ class MainActivity : AppCompatActivity() {
                 Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             )
             prefs.edit().putString("folder_uri", uri.toString()).apply()
-            Toast.makeText(this, "Folder access granted", Toast.LENGTH_SHORT).show()
-        } catch (e: Exception) {
-            Toast.makeText(this, "Folder error: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
+        } catch (e: Exception) {}
     }
 
     private val filePicker = registerForActivityResult(
@@ -49,9 +46,6 @@ class MainActivity : AppCompatActivity() {
     ) { uri ->
         if (uri == null) return@registerForActivityResult
         try {
-            contentResolver.takePersistableUriPermission(
-                uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
             val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
             if (bytes != null) {
                 val b64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
@@ -62,9 +56,7 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
             }
-        } catch (e: Exception) {
-            Toast.makeText(this, "File error: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
+        } catch (e: Exception) {}
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -106,22 +98,6 @@ class MainActivity : AppCompatActivity() {
         } else {
             startService(Intent(this, OverlayBubbleService::class.java))
         }
-
-        if (!isAccessibilityEnabled()) {
-            Toast.makeText(
-                this,
-                "Enable SADNAN AI in Settings → Accessibility for screen reading",
-                Toast.LENGTH_LONG
-            ).show()
-        }
-    }
-
-    private fun isAccessibilityEnabled(): Boolean {
-        val enabled = Settings.Secure.getString(
-            contentResolver,
-            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-        ) ?: return false
-        return enabled.contains("$packageName/${SadnanAccessibilityService::class.java.name}")
     }
 
     override fun onDestroy() {
@@ -151,22 +127,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         @JavascriptInterface
-        fun requestOverlay() {
-            runOnUiThread {
-                if (!Settings.canDrawOverlays(this@MainActivity)) {
-                    startActivity(
-                        Intent(
-                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                            Uri.parse("package:$packageName")
-                        )
-                    )
-                } else {
-                    startService(Intent(this@MainActivity, OverlayBubbleService::class.java))
-                }
-            }
-        }
-
-        @JavascriptInterface
         fun pickFile() {
             runOnUiThread { filePicker.launch(arrayOf("*/*")) }
         }
@@ -174,55 +134,6 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface
         fun pickFolder() {
             runOnUiThread { folderPicker.launch(null) }
-        }
-
-        @JavascriptInterface
-        fun readFileBytes(uriString: String): String {
-            return try {
-                val bytes = contentResolver.openInputStream(Uri.parse(uriString))?.use { it.readBytes() }
-                bytes?.let { android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP) } ?: ""
-            } catch (e: Exception) { "" }
-        }
-
-        @JavascriptInterface
-        fun writeFileBytes(uriString: String, base64: String): Boolean {
-            return try {
-                val bytes = android.util.Base64.decode(base64, android.util.Base64.NO_WRAP)
-                contentResolver.openOutputStream(Uri.parse(uriString))?.use { it.write(bytes) }
-                true
-            } catch (e: Exception) { false }
-        }
-
-        @JavascriptInterface
-        fun downloadZip(name: String, base64: String): Boolean {
-            return try {
-                val bytes = android.util.Base64.decode(base64, android.util.Base64.NO_WRAP)
-                val downloads = android.os.Environment.getExternalStoragePublicDirectory(
-                    android.os.Environment.DIRECTORY_DOWNLOADS
-                )
-                val file = java.io.File(downloads, name)
-                file.writeBytes(bytes)
-                Toast.makeText(this@MainActivity, "Saved to Downloads/$name", Toast.LENGTH_LONG).show()
-                true
-            } catch (e: Exception) {
-                Toast.makeText(this@MainActivity, "Save failed: ${e.message}", Toast.LENGTH_SHORT).show()
-                false
-            }
-        }
-
-        @JavascriptInterface
-        fun shareApk(uriString: String): Boolean {
-            return try {
-                val intent = Intent(Intent.ACTION_VIEW).apply {
-                    setDataAndType(Uri.parse(uriString), "application/vnd.android.package-archive")
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-                startActivity(intent)
-                true
-            } catch (e: Exception) {
-                Toast.makeText(this@MainActivity, "Install failed: ${e.message}", Toast.LENGTH_SHORT).show()
-                false
-            }
         }
     }
 }
