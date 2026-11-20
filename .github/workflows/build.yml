@@ -12,6 +12,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Verify files
+        run: |
+          echo "=== Root directory ==="
+          ls -la
+          echo "=== settings.gradle ==="
+          cat settings.gradle || echo "settings.gradle NOT FOUND"
+          echo "=== app directory ==="
+          ls -la app || echo "app NOT FOUND"
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -20,9 +29,6 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
-
-      - name: Make gradlew executable
-        run: chmod +x gradlew || true
 
       - name: Build Debug APK
         run: gradle assembleDebug --no-daemon
